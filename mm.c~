@@ -1,0 +1,139 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <unistd.h>
+#include <string.h>
+
+#include "mm.h"
+#include "memlib.h"
+
+/*********************************************************
+ * NOTE TO STUDENTS: Before you do anything else, please
+ * provide your team information in below _AND_ in the
+ * struct that follows.
+ *
+ * === User information ===
+ * Group: 
+ * User 1: 
+ * SSN: X
+ * User 2: 
+ * SSN: X
+ * === End User Information ===
+ ********************************************************/
+team_t team = {
+    /* Group name */
+    "Malloc_me_baby",
+    /* First member's full name */
+    "Hjalti Leifsson",
+    /* First member's email address */
+    "Hjaltil13@ru.is",
+    /* Second member's full name (leave blank if none) */
+    "",
+    /* Second member's email address (leave blank if none) */
+    "",
+    /* Leave blank */
+    "",
+    /* Leave blank */
+    ""
+};
+
+/* single word (4) or double word (8) alignment */
+#define ALIGNMENT 8
+
+/* rounds up to the nearest multiple of ALIGNMENT */
+#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+
+
+#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
+
+#define BLOCK_HEADER_SIZE ALIGN(sizeof(size_t))
+
+void *find_fit(size_t size);
+void print_heap();
+
+typedef struct header blockHeader;
+
+struct header {
+    size_t size;
+    blockHeader *next_p;
+    blockHeader *prev_p;
+};
+
+/* 
+ * mm_init - initialize the malloc package.
+ */
+int mm_init(void)
+{
+    blockHeader *p = mem_sbrk(BLOCK_HEADER_SIZE);
+    p->size = BLOCK_HEADER_SIZE;
+    p->next_p = p;
+    p->prev_p = p;
+    return 0;
+}
+void print_heap(){
+    blockHeader *bp = mem_heap_lo();
+    
+    while(bp < (blockHeader *)mem_heap_hi()) {
+        printf("%s block at %p, size %d\n",
+              (bp->size&1)?"allocated":"free",
+               bp,
+               (int)(bp->size));
+        bp = (blockHeader *)((char *)bp + (bp->size & ~1));  
+    
+    }
+}
+
+/* 
+ * mm_malloc - Allocate a block by incrementing the brk pointer.
+ *     Always allocate a block whose size is a multiple of the alignment.
+ */
+void *mm_malloc(size_t size)
+{
+    int newsize = ALIGN(BLOCK_HEADER_SIZE + size);
+
+    blockHeader *bp = find_fit(newsize);
+    if(bp == NULL) {
+        bp = mem_sbrk(newsize);
+    
+        if((long)bp == -1)
+            return NULL;
+        else {
+           bp->size = newsize | 1;
+        }
+    }
+    else {
+        bp->size |= 1;
+        bp->prev_p->next_p = bp->next_p;
+        bp->next_p->prev_p = bp->prev_p;
+    }
+    return (char *)bp + BLOCK_HEADER_SIZE;
+    
+}
+
+void *find_fit(size_t size)
+{
+    blockHeader *p;
+
+    for(p = ((blockHeader *)mem_heap_lo())->next_p;
+        p != mem_heap_lo() && p->size < size;
+        p = p->next_p);
+
+    if(p != mem_heap_lo())
+        return p;
+    else
+        return NULL;
+}
+/*
+ * mm_free - Freeing a block does nothing.
+ */
+void mm_free(void *ptr)
+{
+}
+
+/*
+ * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
+ */
+void *mm_realloc(void *ptr, size_t size)
+{
+    return NULL;
+}
