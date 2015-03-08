@@ -58,10 +58,27 @@ struct header {
 
 #define BLOCK_HEADER_SIZE ALIGN(sizeof(blockHeader))
 
+/*Additional Macros defined*/
+#define WSIZE 4                                                                             //Size of a word
+#define DSIZE 8                                                                             //Size of a double word
+#define CHUNKSIZE 16                                                                        //Initial heap size
+#define OVERHEAD 24                                                                         //The minimum block size
+#define MAX(x ,y)  ((x) > (y) ? (x) : (y))                                                  //Finds the maximum of two numbers
+#define PACK(size, alloc)  ((size) | (alloc))                                               //Put the size and allocated byte into one word
+#define GET(p)  (*(size_t *)(p))                                                            //Read the word at address p
+#define PUT(p, value)  (*(size_t *)(p) = (value))                                           //Write the word at address p
+#define GET_SIZE(p)  (GET(p) & ~0x7)                                                        //Get the size from header/footer
+#define GET_ALLOC(p)  (GET(p) & 0x1)                                                        //Get the allocated bit from header/footer
+#define HDRP(bp)  ((void *)(bp) - WSIZE)                                                    //Get the address of the header of a block
+#define FTRP(bp)  ((void *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)                               //Get the address of the footer of a block
+#define NEXT_BLKP(bp)  ((void *)(bp) + GET_SIZE(HDRP(bp)))                                  //Get the address of the next block
+#define PREV_BLKP(bp)  ((void *)(bp) - GET_SIZE(HDRP(bp) - WSIZE))                          //Get the address of the previous block
+#define NEXT_FREEP(bp)  (*(void **)(bp + DSIZE))                                            //Get the address of the next free block
+#define PREV_FREEP(bp)  (*(void **)(bp))                                                    //Get the address of the previous free block
+
 // Helper functions
 void *first_fit(size_t size);
-void place(blockHeader *bp, size_t size);
-
+static void place(blockHeader *bp, size_t size);
 
 /* 
  * mm_init - initialize the malloc package.
@@ -111,21 +128,21 @@ void *mm_malloc(size_t size)
         else {
             // Found heap memory, set the size to newsize
             // and mark it as allocated
-           bp->size = newsize | 1;
+            bp->size = newsize | 1;
         }
     }
     else { // A block was found.
-
-        bp->size |= 1; 
-        bp->prev_p->next_p = bp->next_p;
-        bp->next_p->prev_p = bp->prev_p;
-
+        place(bp, newsize); 
     }
     return (char *)bp + BLOCK_HEADER_SIZE;    
 }
 
-void place(blockHeader *bp, size_t size){
-    
+static void place(blockHeader *bp, size_t size){
+    //printf("The total size is: %d\n", bp->size + size );
+
+    bp->size |= 1;
+    bp->prev_p->next_p = bp->next_p;
+    bp->next_p->prev_p = bp->prev_p;
 }
 
 void *first_fit(size_t size)
